@@ -1,0 +1,63 @@
+name: DART 수동 분석
+
+on:
+  workflow_dispatch:
+    inputs:
+      stock_code:
+        description: '종목코드 (6자리, 예: 005930)'
+        required: true
+        default: '005930'
+        type: string
+      skip_scenario:
+        description: '상승 시나리오 생략'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run DART Analysis
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          if [ "${{ inputs.skip_scenario }}" = "true" ]; then
+            python main.py ${{ inputs.stock_code }} --skip-scenario
+          else
+            python main.py ${{ inputs.stock_code }}
+          fi
+
+      - name: Commit reports to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          git diff --staged --quiet || git commit -m "📊 ${{ inputs.stock_code }} 분석 리포트 추가"
+          git push || true
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-report-${{ inputs.stock_code }}
+          path: reports/${{ inputs.stock_code }}_*.md
+          retention-days: 30
