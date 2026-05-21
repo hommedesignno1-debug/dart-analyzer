@@ -11,7 +11,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "여기에_GEMINI_API_KEY_입�
 # ===== 분석 설정 =====
 YEARS_TO_FETCH = 5              # 재무제표 과거 데이터 (카츠미 권장)
 FETCH_BOTH_CONSOLIDATED = True  # 연결 + 별도 둘 다
-GEMINI_MODEL = "gemini-1.5-flash"  # 기존 파이프라인과 동일
+GEMINI_MODEL = "gemini-2.5-flash"  # 기존 파이프라인과 동일
 
 # ===== 경로 =====
 BASE_DIR = Path(__file__).parent
