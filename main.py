@@ -121,6 +121,16 @@ def format_financial_table(parsed: dict) -> str:
     return "\n".join(rows)
 
 
+def _fmt_num(val, fmt=".2f", suffix=""):
+    """None 안전한 숫자 포맷팅"""
+    if val is None:
+        return "-"
+    try:
+        return f"{val:{fmt}}{suffix}"
+    except (ValueError, TypeError):
+        return "-"
+
+
 def format_katsuma_table(katsuma: dict) -> str:
     years = sorted(katsuma.keys())
     if not years:
@@ -131,12 +141,12 @@ def format_katsuma_table(katsuma: dict) -> str:
         m = katsuma[y]
         rows.append(
             f"| {y} | "
-            f"{m.get('영업CF_영업이익_비율', 0):.1f}% | "
-            f"{m.get('회수개월수', 0):.2f}개월 | "
-            f"{m.get('회계발생고_비율', 0):.1f}% | "
-            f"{m.get('ROA', 0):.2f}% | "
-            f"{m.get('영업이익률', 0):.2f}% | "
-            f"{m.get('CF패턴', '-')} |"
+            f"{_fmt_num(m.get('영업CF_영업이익_비율'), '.1f', '%')} | "
+            f"{_fmt_num(m.get('회수개월수'), '.2f', '개월')} | "
+            f"{_fmt_num(m.get('회계발생고_비율'), '.1f', '%')} | "
+            f"{_fmt_num(m.get('ROA'), '.2f', '%')} | "
+            f"{_fmt_num(m.get('영업이익률'), '.2f', '%')} | "
+            f"{m.get('CF패턴') or '-'} |"
         )
     return "\n".join(rows)
 
@@ -145,12 +155,16 @@ def format_bulgom_table(bulgom: dict) -> str:
     rows = ["| 항목 | 기준 | 실제값 | 통과 |"]
     rows.append("|------|------|--------|------|")
     for name, check in bulgom.get("checks", {}).items():
-        val = check.get("value", check.get("values", "-"))
+        val = check.get("value")
+        if val is None:
+            val = check.get("values", "-")
+        if val is None:
+            val = "-"
         pass_mark = "✅" if check.get("pass") else "❌"
         rows.append(f"| {name} | {check.get('기준', '-')} | {val} | {pass_mark} |")
     rows.append(f"\n**판정**: {bulgom.get('판정', '-')} ({bulgom.get('passed_count', 0)}/{bulgom.get('total', 6)})")
     return "\n".join(rows)
-
+    
 
 def format_growth_table(growth: dict) -> str:
     rows = ["**YoY**"]
