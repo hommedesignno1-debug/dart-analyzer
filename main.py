@@ -1,11 +1,5 @@
 """
-DART 분석기 메인 진입점 (v0.2 완성판)
-
-사용법:
-    python main.py 005930                    # 삼성전자
-    python main.py 005930 --skip-scenario    # 시나리오 생략
-    python main.py 005930 --no-email         # 이메일 발송 안 함
-    python main.py --watchlist               # watchlist.csv 일괄 처리
+DART 분석기 메인 진입점 (v0.2.1)
 """
 import sys
 import argparse
@@ -27,7 +21,6 @@ from analyzers.gemini_caller import GeminiCaller
 from utils.report_builder import build_report, save_report
 from utils.email_sender import send_report_email, extract_summary_from_report
 
-# 7개 프롬프트
 from prompts.basic import BASIC_PROMPT
 from prompts.tenbagger import TENBAGGER_PROMPT
 from prompts.swing import SWING_PROMPT
@@ -62,11 +55,11 @@ def collect_all_data(stock_code: str) -> dict:
     executives = None
     if biz_report is not None:
         print("  → 사업의 내용")
-        business_content = dart.get_business_section(biz_report["rcept_no"])
+        business_content = dart.get_business_section(stock_code, biz_report)
         print("  → 최대주주 현황")
-        shareholders = dart.get_shareholders(biz_report["rcept_no"])
+        shareholders = dart.get_shareholders(stock_code, biz_report)
         print("  → 임원 현황")
-        executives = dart.get_executives(biz_report["rcept_no"])
+        executives = dart.get_executives(stock_code, biz_report)
 
     return {
         "company": company,
@@ -95,7 +88,6 @@ def precompute_metrics(raw_data: dict) -> dict:
     print("  → 성장률")
     growth = calc_growth_rates(parsed)
 
-    # 사업의 내용 파싱
     print("  → 사업의 내용 파싱")
     business_parsed = parse_business_content(raw_data.get("business_content"))
     business_summary = summarize_for_prompt(business_parsed, max_chars=5000)
@@ -111,10 +103,9 @@ def precompute_metrics(raw_data: dict) -> dict:
 
 
 # ============================================================
-# 3. Gemini 분석 (7개 순차)
+# 3. Gemini 분석
 # ============================================================
 def format_financial_table(parsed: dict) -> str:
-    """재무제표를 마크다운 표로 포맷"""
     years = sorted(parsed.keys())
     if not years:
         return "재무 데이터 없음"
@@ -131,7 +122,6 @@ def format_financial_table(parsed: dict) -> str:
 
 
 def format_katsuma_table(katsuma: dict) -> str:
-    """카츠미 지표를 마크다운 표로"""
     years = sorted(katsuma.keys())
     if not years:
         return "데이터 없음"
@@ -152,7 +142,6 @@ def format_katsuma_table(katsuma: dict) -> str:
 
 
 def format_bulgom_table(bulgom: dict) -> str:
-    """불곰 안전성을 마크다운 표로"""
     rows = ["| 항목 | 기준 | 실제값 | 통과 |"]
     rows.append("|------|------|--------|------|")
     for name, check in bulgom.get("checks", {}).items():
@@ -182,7 +171,6 @@ def run_ai_analyses(raw_data: dict, metrics: dict) -> dict:
     sector = company_info.get("induty_code", "?") if isinstance(company_info, dict) else "?"
     stock_code = company_info.get("stock_code", "?") if isinstance(company_info, dict) else "?"
 
-    # 공통 변수
     common_vars = {
         "company_name": company_name,
         "stock_code": stock_code,
@@ -224,7 +212,6 @@ def run_ai_analyses(raw_data: dict, metrics: dict) -> dict:
         prompt = template.format(**common_vars)
         results[key] = gemini.call_with_delay(prompt, label=name)
 
-    # 시나리오 (조건부)
     if ENABLED_MODULES.get("scenario"):
         print("  ▶ 상승 시나리오 (조건부)")
         prior = "\n\n".join([
@@ -235,7 +222,6 @@ def run_ai_analyses(raw_data: dict, metrics: dict) -> dict:
             SCENARIO_PROMPT.format(**scenario_vars), label="시나리오"
         )
 
-    # 최종 종합판정
     if ENABLED_MODULES.get("final"):
         print("  ▶ 최종 종합판정")
         final_vars = {
@@ -266,12 +252,10 @@ def finalize(stock_code: str, raw_data: dict, metrics: dict, ai_results: dict, s
     company_name = company_info.get("corp_name", stock_code) if isinstance(company_info, dict) else stock_code
     sector = company_info.get("induty_code", "?") if isinstance(company_info, dict) else "?"
 
-    # Markdown 조립
     content = build_report(stock_code, company_name, sector, raw_data, metrics, ai_results)
     filepath = save_report(content, stock_code, REPORTS_DIR)
     print(f"  → 저장: {filepath}")
 
-    # 이메일
     if send_email:
         summary = extract_summary_from_report(content)
         send_report_email(stock_code, company_name, summary, filepath)
@@ -308,7 +292,6 @@ def analyze_single(stock_code: str, skip_scenario: bool, send_email: bool):
 
 
 def analyze_watchlist(send_email: bool):
-    """관심종목 리스트 일괄 처리"""
     watchlist_path = Path(__file__).parent / "watchlist.csv"
     if not watchlist_path.exists():
         print(f"❌ {watchlist_path} 없음")
