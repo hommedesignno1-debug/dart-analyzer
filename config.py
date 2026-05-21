@@ -23,7 +23,7 @@ CACHE_DIR.mkdir(exist_ok=True)
 # ===== Gemini 호출 설정 =====
 GEMINI_TIMEOUT = 120     # 단일 호출 타임아웃 (초)
 GEMINI_RETRY = 2         # 실패 시 재시도 횟수
-GEMINI_DELAY = 3         # 호출 간 대기 (rate limit 회피)
+GEMINI_DELAY = 1         # 호출 간 대기 (rate limit 회피)
 
 # ===== 분석 모듈 활성화 =====
 ENABLED_MODULES = {
