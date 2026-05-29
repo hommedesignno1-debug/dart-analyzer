@@ -1,9 +1,9 @@
 name: DART 자동 분석 (watchlist)
 
 on:
-  schedule:
-    - cron: '0 23 * * 0-4'
-  workflow_dispatch:
+  #  schedule:
+  #  - cron: '0 23 * * 0-4'
+  #  workflow_dispatch:
 
 jobs:
   batch-analyze:
